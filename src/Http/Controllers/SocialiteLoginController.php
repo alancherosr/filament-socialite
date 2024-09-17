@@ -2,6 +2,7 @@
 
 namespace DutchCodingCompany\FilamentSocialite\Http\Controllers;
 
+use App\Models\Company;
 use DutchCodingCompany\FilamentSocialite\Events;
 use DutchCodingCompany\FilamentSocialite\Exceptions\ProviderNotConfigured;
 use DutchCodingCompany\FilamentSocialite\FilamentSocialitePlugin;
@@ -29,8 +30,24 @@ class SocialiteLoginController extends Controller
             throw ProviderNotConfigured::make($provider);
         }
 
-        /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
-        $driver = Socialite::driver($provider);
+        // Retrieve company_id from session
+        $company_id = session('company_id', 'azure');
+        if($provider == 'azure' && $company_id != 'azure') {
+            $company = Company::find($company_id);
+            $clientId = $company->getSetting('azure_client_id');
+            $clientSecret = $company->getSetting('azure_secret');
+            $redirectUrl = config('services.azure.redirect');
+            $additionalProviderConfig = [
+                'tenant' => $company->getSetting('azure_tenant_id'),
+            ];
+            
+            $config = new \SocialiteProviders\Manager\Config($clientId, $clientSecret, $redirectUrl, $additionalProviderConfig);
+
+            /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+            $driver = Socialite::driver($provider)->setConfig($config);
+        } else {
+            $driver = Socialite::driver($provider);
+        }
 
         $response = $driver
             ->with([
@@ -53,8 +70,24 @@ class SocialiteLoginController extends Controller
         $stateless = $this->plugin()->getProvider($provider)->getStateless();
 
         try {
-            /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
-            $driver = Socialite::driver($provider);
+            // Retrieve company_id from session
+            $company_id = session('company_id', 'azure');
+            if($provider == 'azure' && $company_id != 'azure') {
+                $company = Company::find($company_id);
+                $clientId = $company->getSetting('azure_client_id');
+                $clientSecret = $company->getSetting('azure_secret');
+                $redirectUrl = config('services.azure.redirect');
+                $additionalProviderConfig = [
+                    'tenant' => $company->getSetting('azure_tenant_id'),
+                ];
+                
+                $config = new \SocialiteProviders\Manager\Config($clientId, $clientSecret, $redirectUrl, $additionalProviderConfig);
+
+                /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+                $driver = Socialite::driver($provider)->setConfig($config);
+            } else {
+                $driver = Socialite::driver($provider);
+            }
 
             return $stateless
                 ? $driver->stateless()->user()
