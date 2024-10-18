@@ -180,6 +180,19 @@ class SocialiteLoginController extends Controller
         // Try to find a socialite user
         $socialiteUser = $this->retrieveSocialiteUser($provider, $oauthUser);
         if ($socialiteUser) {
+            // **Check if the authentication method is allowed**
+            $authMethodUsed = $provider == 'google' ? 'sso_google' : 'sso_microsoft';
+
+            session(['auth_method' => $authMethodUsed]);
+
+            logger()->debug('auth_method', [
+                'auth_method' => $authMethodUsed,
+                'auth_method_check' => $socialiteUser->getUser()->allowsAuthMethod($authMethodUsed)
+            ]);
+    
+            if (!$socialiteUser->getUser()->allowsAuthMethod($authMethodUsed)) {
+                return $this->redirectToLogin('filament-socialite::auth-method-not-allowed');
+            }
             return $this->loginUser($provider, $socialiteUser, $oauthUser);
         }
 
